@@ -74,16 +74,22 @@
     .video{overflow:hidden;border-radius:18px;border:1px solid #2a1e33;background:#0c0f18}
     .video video{width:100%;height:auto;display:block}
 
-    /* Modal */
+    /* Modal base */
     .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:1000}
     .modal{width:min(92vw,520px);background:linear-gradient(180deg,var(--card),var(--soft));border:1px solid #2a1e33;border-radius:20px;box-shadow:var(--shadow);padding:18px}
     .modal header{position:unset;background:transparent;border:none;padding:0;margin:0 0 8px}
     .modal h4{margin:0;font-size:20px}
+
+    /* Payment modal */
     .modal .qrbox{display:grid;place-items:center;padding:16px;border:1px dashed #a855f7;border-radius:16px;background:rgba(192,132,252,.06)}
     .modal .row{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:12px}
     .modal .link{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fde68a}
     .close-btn{all:unset;cursor:pointer;padding:8px 10px;border-radius:10px;background:rgba(192,132,252,.15);border:1px solid #a855f7}
     .primary-btn{all:unset;cursor:pointer;padding:10px 14px;border-radius:12px;background:linear-gradient(135deg,var(--pri),var(--pri-strong));color:#1a0e14;font-weight:800}
+
+    /* Thanks modal */
+    .thanks-title{font-size:22px;margin:0 0 6px}
+    .thanks-text{color:var(--muted);margin:0 0 10px}
 
     footer{padding:26px 0;color:var(--muted);border-top:1px solid #2a1e33;margin-top:40px}
 
@@ -110,7 +116,7 @@
     "name": "ENGLISH BOX",
     "url": "https://example.com/",
     "logo": "https://example.com/logo.png",
-    "sameAs": ["https://t.me/englishbox", "https://instagram.com/englishbox"]
+    "sameAs": ["https://t.me/englishbox", "https://instagram.com/englishbox", "https://vk.com/englishbox"]
   }
   </script>
   <script type="application/ld+json">
@@ -147,7 +153,7 @@
         <a href="#products">Товары</a>
         <a href="#videos">Видео</a>
         <a href="#about">О бренде</a>
-        <a href="#contact" class="cta">Связаться</a>
+        <a href="https://vk.com/englishbox" class="cta" target="_blank" rel="noopener noreferrer" id="contactBtn">Связаться</a>
       </nav>
     </div>
   </header>
@@ -250,10 +256,10 @@
   <!-- Контакты -->
   <section id="contact" class="container section" aria-labelledby="contact-title">
     <h3 id="contact-title">Связаться</h3>
-    <p>Напишите нам в Telegram: <a href="https://t.me/englishbox" target="_blank" rel="noopener noreferrer">@englishbox</a></p>
+    <p>Напишите нам в VK: <a href="https://vk.com/englishbox" target="_blank" rel="noopener noreferrer">vk.com/englishbox</a></p>
   </section>
 
-  <!-- Модальное окно с QR -->
+  <!-- Модальное окно оплаты (QR) -->
   <div id="qrModal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="qrTitle" aria-describedby="qrDesc">
     <div class="modal">
       <header class="row" style="display:flex;align-items:center;justify-content:space-between">
@@ -269,6 +275,18 @@
     </div>
   </div>
 
+  <!-- Модальное окно благодарности -->
+  <div id="thanksModal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="thanksTitle" aria-describedby="thanksText">
+    <div class="modal" style="text-align:center">
+      <header class="row" style="display:flex;align-items:center;justify-content:space-between">
+        <h4 id="thanksTitle" class="thanks-title">Спасибо!</h4>
+        <button class="close-btn" id="thanksClose" type="button" aria-label="Закрыть сообщение">Закрыть</button>
+      </header>
+      <p id="thanksText" class="thanks-text">Спасибо за покупку.</p>
+      <button class="primary-btn" id="thanksOk" type="button">Хорошо</button>
+    </div>
+  </div>
+
   <footer role="contentinfo">
     <div class="container">© <span id="year"></span> ENGLISH BOX<sup>®</sup>. Все права защищены.</div>
   </footer>
@@ -277,67 +295,123 @@
     // Год в футере
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    // Модалка с QR + фокус-ловушка
-    const modal = document.getElementById('qrModal');
+    // Модалки и ловушка фокуса
+    const qrModal = document.getElementById('qrModal');
+    const thanksModal = document.getElementById('thanksModal');
+    let lastActive = null; // куда вернуть фокус
+    let activeTrap = null; // текущая модалка для ловушки фокуса
+
+    function trapFocus(e){
+      if(activeTrap && !activeTrap.contains(e.target)){
+        e.stopPropagation();
+        const focusable = activeTrap.querySelectorAll('a[href],button,[tabindex]:not([tabindex="-1"])');
+        if(focusable.length){ focusable[0].focus(); }
+      }
+    }
+
+    function openModal(modalEl, initialFocusEl){
+      lastActive = document.activeElement;
+      modalEl.style.display = 'flex';
+      modalEl.setAttribute('aria-hidden','false');
+      document.body.style.overflow = 'hidden';
+      activeTrap = modalEl;
+      setTimeout(()=>{ (initialFocusEl || modalEl.querySelector('button, a'))?.focus(); }, 0);
+      document.addEventListener('focus', trapFocus, true);
+    }
+
+    function closeModal(modalEl){
+      modalEl.style.display = 'none';
+      modalEl.setAttribute('aria-hidden','true');
+      document.body.style.overflow = '';
+      document.removeEventListener('focus', trapFocus, true);
+      activeTrap = null;
+      if(lastActive) lastActive.focus();
+    }
+
+    // Оплата (QR)
     const qrBox = document.getElementById('qrBox');
     const qrTitle = document.getElementById('qrTitle');
     const qrLinkText = document.getElementById('qrLinkText');
     const qrOpen = document.getElementById('qrOpen');
-    const closeBtn = document.getElementById('qrClose');
-    let lastActive = null;
+    const qrClose = document.getElementById('qrClose');
     let qrInstance = null;
+    let paymentLinkOpened = false;
 
     function openQRModal(title, payLink){
-      // валидация ссылки
+      // проверим ссылку
       try { new URL(payLink); } catch(e){
         alert('Некорректная ссылка на оплату.');
         return;
       }
-      lastActive = document.activeElement;
+      paymentLinkOpened = false;
       qrBox.innerHTML = '';
       // eslint-disable-next-line no-undef
       qrInstance = new QRCode(qrBox, { text: payLink, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
       qrTitle.textContent = `Оплата — ${title}`;
       qrLinkText.textContent = payLink;
-      qrOpen.href = payLink;
-      modal.style.display = 'flex';
-      modal.setAttribute('aria-hidden','false');
-      document.body.style.overflow = 'hidden';
-      // фокус внутрь
-      setTimeout(()=>{ qrOpen.focus(); }, 0);
-      // включаем ловушку
-      document.addEventListener('focus', trapFocus, true);
+      qrOpen.href = payLink; // откроется в новой вкладке
+      openModal(qrModal, qrOpen);
     }
 
-    function closeQRModal(){
-      modal.style.display = 'none';
-      modal.setAttribute('aria-hidden','true');
+    function closeQR(){
+      closeModal(qrModal);
       if(qrInstance){ qrBox.innerHTML=''; qrInstance = null; }
-      document.body.style.overflow = '';
-      document.removeEventListener('focus', trapFocus, true);
-      if(lastActive) lastActive.focus();
+      // Если пользователь закрыл окно и не переходил по ссылке — благодарим за интерес
+      if(!paymentLinkOpened){ showThanks('Спасибо за интерес к нашим товарам!'); }
     }
 
-    function trapFocus(e){
-      if(!modal.contains(e.target)){
-        e.stopPropagation();
-        qrOpen.focus();
-      }
-    }
+    qrClose.addEventListener('click', closeQR);
+    qrModal.addEventListener('click', (e)=>{ if(e.target === qrModal) closeQR(); });
+    document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && qrModal.getAttribute('aria-hidden') === 'false') closeQR(); });
 
-    closeBtn.addEventListener('click', closeQRModal);
-    modal.addEventListener('click', (e)=>{ if(e.target === modal) closeQRModal(); });
-    document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeQRModal(); });
+    // Кнопка перехода к оплате
+    qrOpen.addEventListener('click', ()=>{
+      paymentLinkOpened = true;
+      // отметим намерение оплаты: можно использовать для последующей логики
+      try { localStorage.setItem('paymentIntent','1'); } catch(_){}
+    });
 
-    // Кнопки «Купить»
+    // Кнопки «Купить» — генерируем QR на https://payform.ru/kf7SPph/
     document.querySelectorAll('.buy').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         const title = btn.dataset.title || 'Товар';
-        const pay = btn.dataset.paylink;
-        if(!pay){ alert('Ссылка на оплату не указана. Добавьте data-paylink к кнопке.'); return; }
+        const pay = btn.dataset.paylink || 'https://payform.ru/kf7SPph/';
         openQRModal(title, pay);
       });
     });
+
+    // Модалка "Спасибо"
+    const thanksTitle = document.getElementById('thanksTitle');
+    const thanksText = document.getElementById('thanksText');
+    const thanksClose = document.getElementById('thanksClose');
+    const thanksOk = document.getElementById('thanksOk');
+
+    function showThanks(text){
+      thanksTitle.textContent = 'Спасибо!';
+      thanksText.textContent = text;
+      openModal(thanksModal, thanksOk);
+    }
+
+    function closeThanks(){ closeModal(thanksModal); }
+    thanksClose.addEventListener('click', closeThanks);
+    thanksOk.addEventListener('click', closeThanks);
+    thanksModal.addEventListener('click', (e)=>{ if(e.target === thanksModal) closeThanks(); });
+
+    // Поддержка сценария с возвратом с платёжной страницы
+    // Если у платёжного провайдера настроить redirect на этот URL с параметром ?payment=success,
+    // то мы покажем соответствующее сообщение.
+    (function handleReturn(){
+      const params = new URLSearchParams(window.location.search);
+      const status = params.get('payment');
+      if(status === 'success'){
+        showThanks('Спасибо за покупку!');
+        try { localStorage.removeItem('paymentIntent'); } catch(_){}
+        // очищаем параметр, чтобы при обновлении страницы сообщение не повторялось
+        const url = new URL(window.location.href);
+        url.searchParams.delete('payment');
+        window.history.replaceState({}, '', url.toString());
+      }
+    })();
   </script>
 
   <noscript>
